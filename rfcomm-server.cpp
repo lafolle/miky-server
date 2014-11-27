@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include <cstdlib>
+#include <map>
 /*
 	Keep rapidjson files above X11 headers
 	to successfully compile.
@@ -28,6 +29,12 @@ xdo_t *xdo_instance;
 NotifyNotification *nn = notify_notification_new("This is summary",
 												 "Bluetooth mouse is connected",
 												 NULL);
+struct ltstr {
+	bool operator()(const char *s1, const char * s2) {
+		return strcmp(s1, s2) < 0;
+	}
+};
+map<const char *, const char *, ltstr> command_desc;
 
 class HostConfig {
 public:
@@ -161,9 +168,9 @@ bool event_loop(int client)
 				Document d; d.Parse(objects[i]);
 				const char *mtype = d["mtype"].GetString();
 
-				printf("%s\n", mtype);
 				if ( strcmp("1P_M", mtype )  == 0 ){
 					// 1 pointer move
+					printf("%s\n", command_desc[mtype]);
 
 					pointer_x = d["coord_x"].GetInt();
 					pointer_y = d["coord_y"].GetInt();
@@ -175,24 +182,26 @@ bool event_loop(int client)
 					prev_x = pointer_x;
 					prev_y = pointer_y;
 				}
-				else if ( strcmp( "1P_D", mtype ) == 0 ) {
-					// 1 pointer down
+				else if ( strcmp( "1P_D", mtype ) == 0 ) { // up
+					printf("%s\n", command_desc[mtype]);
 					prev_x = d["coord_x"].GetInt();
 					prev_y = d["coord_y"].GetInt();
 				}
-				else if ( strcmp( "1P_U", mtype ) == 0 ) {
+				else if ( strcmp( "1P_U", mtype ) == 0 ) { // down
 					prev_x = -1;
+					printf("%s\n", command_desc[mtype]);
 					prev_y = -1;
 				}
-				else if ( strcmp( "1P_T", mtype ) == 0 ) {
-					// 1 pointer tap
-					printf("mtype: 1P_T\n");
+				else if ( strcmp( "1P_T", mtype ) == 0 ) { // single click
+					printf("%s\n", command_desc[mtype]);
 					xdo_click_window( xdo_instance, CURRENTWINDOW, 1 );
 				}
-				else if ( strcmp( "1P_DT", mtype) == 0 ) {
-					// 1 pointers double tap
-					printf("mtype: 1P_DT\n");
+				else if ( strcmp( "1P_DT", mtype) == 0 ) { // double tap
 					xdo_click_window_multiple( xdo_instance, CURRENTWINDOW, 1 , 2, 500);
+				}
+				else if ( strcmp("1P_RC", mtype ) == 0 ) { // right click
+					printf("mtype: %s\n", mtype);
+					xdo_click_window(xdo_instance, CURRENTWINDOW, 3);
 				}
 				else if ( strcmp( "2P_M_UP", mtype ) == 0 ) { // 2 pointers : scroll up
 					printf("mtype: %s\n", mtype);
@@ -209,8 +218,7 @@ bool event_loop(int client)
 					printf("mtype: %s\n", mtype);
 				}
 
-				else if ( strcmp( "3P_M", mtype ) == 0 ) {
-					// 3 pointers move
+				else if ( strcmp( "3P_M", mtype ) == 0 ) { // 3 pointers move
 					printf("mtype: 3P_M\n");
 				}
 				else if ( strcmp( "REINIT_CONN", mtype ) == 0 ) {
@@ -245,6 +253,21 @@ void setup()
 	xdo_instance = xdo_new(NULL);
 
     sdp_session_t* session = register_service();
+
+    // initialize commands description map
+	command_desc["1P_M"] = "one pointer move";
+	command_desc["1P_D"] = "one pointer down";
+	command_desc["1P_U"] = "one pointer up";
+	command_desc["1P_T"] = "one pointer tap";
+	command_desc["1P_DT"] = "one pointer double tap";
+	command_desc["1P_RC"] = "";
+	command_desc["2P_M_UP"] = "two pointer mouse up";
+	command_desc["2P_M_DOWN"] = "two pointer mouse down";
+	command_desc["2P_M_LEFT"] = "two pointer mouse left";
+	command_desc["2P_M_RIGHT"] = "two pointer mouse right";
+	command_desc["3P_M"] = "three pointer move";
+	command_desc["REINIT_CONN"] = "reinitialize the connection";
+	command_desc["CLOSE_CONN"] = "close down the connection";
 }
 
 int main(int argc, char const *argv[])
