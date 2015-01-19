@@ -1,4 +1,4 @@
-miky-server
+whoop-server
 ===========
 
-Server handling bluetooth communication from miky app https://github.com/lafolle/miky.git .
+This is command interpreter and executioner for the whoop Android app.
